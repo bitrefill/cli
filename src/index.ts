@@ -253,8 +253,11 @@ function coerceValue(raw: string, prop: JsonSchemaProperty): unknown {
             if (['true', '1', 'yes'].includes(raw)) return true;
             if (['false', '0', 'no'].includes(raw)) return false;
             throw new Error('Must be true/false');
-        default:
+        case 'object':
+        case 'array':
             return JSON.parse(raw);
+        default:
+            return raw;
     }
 }
 

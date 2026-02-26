@@ -27,10 +27,10 @@ On first run, the CLI will open your browser for OAuth authorization. Credential
 bitrefill search-products --query "Netflix"
 
 # Get product details
-bitrefill get_product_details --product_id "steam-usa" --currency USDC
+bitrefill get-product-details --product_id "steam-usa" --currency USDC
 
 # Buy a product
-bitrefill buy_products --cart_items '{"product_id": "steam-usa", "package_id": 10}' --payment_method usdc_base
+bitrefill buy-products --cart_items '{"product_id": "steam-usa", "package_id": 10}' --payment_method usdc_base
 
 # List your orders
 bitrefill list-orders
