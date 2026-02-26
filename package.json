@@ -1,6 +1,6 @@
 {
   "name": "@bitrefill/cli",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "Bitrefill - browse, buy, and manage gift cards, mobile top-ups, and eSIMs",
   "type": "module",
   "bin": {
