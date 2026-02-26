@@ -12,6 +12,10 @@
     "dev": "tsx src/index.ts",
     "format": "prettier --check ./src"
   },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/bitrefill/cli.git"
+  },
   "files": [
     "dist"
   ],
