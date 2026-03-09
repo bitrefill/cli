@@ -1,0 +1,7 @@
+{
+    "mcpServers": {
+        "bitrefill": {
+            "url": "https://api.bitrefill.com/mcp"
+        }
+    }
+}
