@@ -29,6 +29,9 @@ bitrefill --api-key YOUR_API_KEY search-products --query "Netflix"
 # Environment variable
 export BITREFILL_API_KEY=YOUR_API_KEY
 bitrefill search-products --query "Netflix"
+
+# Or copy .env.example to .env and fill in your key
+cp .env.example .env
 ```
 
 ## Usage
