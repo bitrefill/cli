@@ -24,10 +24,24 @@ import path from 'node:path';
 import os from 'node:os';
 import { execSync } from 'node:child_process';
 
-const DEFAULT_MCP_URL = process.env.MCP_URL || 'https://api.bitrefill.com/mcp';
+const BASE_MCP_URL = 'https://api.bitrefill.com/mcp';
 const CALLBACK_PORT = 8098;
 const CALLBACK_URL = `http://127.0.0.1:${CALLBACK_PORT}/callback`;
 const STATE_DIR = path.join(os.homedir(), '.config', 'bitrefill-cli');
+
+function resolveApiKey(): string | undefined {
+    const idx = process.argv.indexOf('--api-key');
+    if (idx !== -1 && idx + 1 < process.argv.length) {
+        return process.argv[idx + 1];
+    }
+    return process.env.BITREFILL_API_KEY;
+}
+
+function resolveMcpUrl(apiKey?: string): string {
+    if (process.env.MCP_URL) return process.env.MCP_URL;
+    if (apiKey) return `${BASE_MCP_URL}/${apiKey}`;
+    return BASE_MCP_URL;
+}
 
 // --- Persistent OAuth state ---
 
@@ -171,18 +185,28 @@ function waitForCallback(): Promise<string> {
 // --- MCP connection ---
 
 async function createMcpClient(
-    url: string
+    url: string,
+    useOAuth: boolean
 ): Promise<{ client: Client; transport: StreamableHTTPClientTransport }> {
-    const authProvider = createOAuthProvider(url);
-
     const suppressNoise = (err: Error) => {
         if (err instanceof UnauthorizedError) return;
         if (err.message?.includes('SSE stream disconnected')) return;
+        if (err.message?.includes('Failed to open SSE stream')) return;
         console.error('Client error:', err);
     };
 
+    if (!useOAuth) {
+        const c = new Client({ name: 'bitrefill-cli', version: '0.1.0' });
+        c.onerror = suppressNoise;
+        const t = new StreamableHTTPClientTransport(new URL(url));
+        await c.connect(t);
+        return { client: c, transport: t };
+    }
+
+    const authProvider = createOAuthProvider(url);
+
     const tryConnect = async () => {
-        const c = new Client({ name: 'bitrefill-cli', version: '0.0.1' });
+        const c = new Client({ name: 'bitrefill-cli', version: '0.1.0' });
         c.onerror = suppressNoise;
         const t = new StreamableHTTPClientTransport(new URL(url), {
             authProvider,
@@ -200,7 +224,7 @@ async function createMcpClient(
         const code = await waitForCallback();
         console.log('Authorization code received.');
 
-        const c = new Client({ name: 'bitrefill-cli', version: '0.0.1' });
+        const c = new Client({ name: 'bitrefill-cli', version: '0.1.0' });
         c.onerror = suppressNoise;
         const t = new StreamableHTTPClientTransport(new URL(url), {
             authProvider,
@@ -311,8 +335,12 @@ function optionKey(s: string): string {
 // --- Main ---
 
 async function main(): Promise<void> {
+    const apiKey = resolveApiKey();
+    const mcpUrl = resolveMcpUrl(apiKey);
+    const useOAuth = !apiKey && !process.env.MCP_URL;
+
     // Phase 1: connect and discover tools
-    const { client, transport } = await createMcpClient(DEFAULT_MCP_URL);
+    const { client, transport } = await createMcpClient(mcpUrl, useOAuth);
 
     const toolsResult = await client.request(
         { method: 'tools/list', params: {} },
@@ -326,14 +354,24 @@ async function main(): Promise<void> {
         .description(
             'Bitrefill CLI - browse, buy, and manage gift cards, mobile top-ups, and eSIMs.\n\nTerms: https://www.bitrefill.com/terms\nPrivacy: https://www.bitrefill.com/privacy'
         )
-        .version('0.0.1');
+        .version('0.1.0')
+        .option(
+            '--api-key <key>',
+            'Bitrefill API key (overrides BITREFILL_API_KEY env var)'
+        );
 
     program
         .command('logout')
         .description('Clear stored OAuth credentials')
         .action(() => {
+            if (!useOAuth) {
+                console.log(
+                    'Using API key authentication — no stored credentials to clear.'
+                );
+                return;
+            }
             try {
-                fs.unlinkSync(stateFilePath(DEFAULT_MCP_URL));
+                fs.unlinkSync(stateFilePath(mcpUrl));
                 console.log('Cleared stored credentials.');
             } catch {
                 console.log('No stored credentials to clear.');

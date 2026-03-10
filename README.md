@@ -12,13 +12,30 @@ The CLI connects to the [Bitrefill MCP server](https://api.bitrefill.com/mcp) an
 npm install -g @bitrefill/cli
 ```
 
+## Authentication
+
+### OAuth (default)
+
+On first run, the CLI opens your browser for OAuth authorization. Credentials are stored in `~/.config/bitrefill-cli/`.
+
+### API Key
+
+Generate an API key at [bitrefill.com/account/developers](https://www.bitrefill.com/account/developers) and pass it via the `--api-key` option or the `BITREFILL_API_KEY` environment variable. This skips the OAuth flow entirely.
+
+```bash
+# Option
+bitrefill --api-key YOUR_API_KEY search-products --query "Netflix"
+
+# Environment variable
+export BITREFILL_API_KEY=YOUR_API_KEY
+bitrefill search-products --query "Netflix"
+```
+
 ## Usage
 
 ```bash
-bitrefill <command> [options]
+bitrefill [--api-key <key>] <command> [options]
 ```
-
-On first run, the CLI will open your browser for OAuth authorization. Credentials are stored in `~/.config/bitrefill-cli/`.
 
 ### Examples
 
