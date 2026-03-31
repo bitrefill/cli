@@ -29,9 +29,11 @@ import {
 } from './output.js';
 import { buildOptionsForTool, parseToolArgs } from './tools.js';
 import { generateLlmContextMarkdown } from './llm-context.js';
+import { resolveApiKeyWithStore } from './credentials.js';
+import { runInit } from './init.js';
 
 /** Subcommands defined by the CLI; MCP tools with the same name are skipped. */
-const RESERVED_TOOL_NAMES = new Set(['logout', 'llm-context']);
+const RESERVED_TOOL_NAMES = new Set(['logout', 'llm-context', 'init']);
 
 const BASE_MCP_URL = 'https://api.bitrefill.com/mcp';
 const CALLBACK_PORT = 8098;
@@ -39,11 +41,7 @@ const CALLBACK_URL = `http://127.0.0.1:${CALLBACK_PORT}/callback`;
 const STATE_DIR = path.join(os.homedir(), '.config', 'bitrefill-cli');
 
 function resolveApiKey(): string | undefined {
-    const idx = process.argv.indexOf('--api-key');
-    if (idx !== -1 && idx + 1 < process.argv.length) {
-        return process.argv[idx + 1];
-    }
-    return process.env.BITREFILL_API_KEY;
+    return resolveApiKeyWithStore();
 }
 
 function resolveMcpUrl(apiKey?: string): string {
@@ -265,9 +263,67 @@ async function createMcpClient(
     }
 }
 
+// --- Init (pre-connect) ---
+
+function isInitCommand(): boolean {
+    const hasInit = process.argv.some((arg, i) => arg === 'init' && i >= 2);
+    if (!hasInit) return false;
+    const hasHelp =
+        process.argv.includes('--help') || process.argv.includes('-h');
+    return !hasHelp;
+}
+
+const INIT_HELP = `Usage: bitrefill init [options]
+
+Set up the CLI: validate API key, store credentials, and optionally register with OpenClaw.
+
+Options:
+  --api-key <key>     Bitrefill API key
+  --openclaw          Force OpenClaw integration even if not auto-detected
+  --non-interactive   Disable interactive prompts
+  -h, --help          Display help for command`;
+
+async function handleInit(): Promise<void> {
+    const formatter = createOutputFormatter(resolveJsonMode());
+
+    const apiKeyIdx = process.argv.indexOf('--api-key');
+    const apiKey =
+        apiKeyIdx !== -1 && apiKeyIdx + 1 < process.argv.length
+            ? process.argv[apiKeyIdx + 1]
+            : undefined;
+
+    try {
+        await runInit({
+            apiKey,
+            openclaw: process.argv.includes('--openclaw'),
+            nonInteractive: !resolveInteractive(),
+        });
+    } catch (err) {
+        formatter.error(err);
+        process.exit(1);
+    }
+}
+
+function isInitHelpCommand(): boolean {
+    const hasInit = process.argv.some((arg, i) => arg === 'init' && i >= 2);
+    const hasHelp =
+        process.argv.includes('--help') || process.argv.includes('-h');
+    return hasInit && hasHelp;
+}
+
 // --- Main ---
 
 async function main(): Promise<void> {
+    if (isInitCommand()) {
+        await handleInit();
+        return;
+    }
+
+    if (isInitHelpCommand()) {
+        console.log(INIT_HELP);
+        return;
+    }
+
     const apiKey = resolveApiKey();
     const formatter = createOutputFormatter(resolveJsonMode());
     const mcpUrl = resolveMcpUrl(apiKey);
@@ -277,7 +333,8 @@ async function main(): Promise<void> {
         formatter.error(
             new Error(
                 'Authorization required but running in non-interactive mode.\n' +
-                    'Use --api-key or set BITREFILL_API_KEY to authenticate without a browser.'
+                    'Use --api-key or set BITREFILL_API_KEY to authenticate without a browser.\n' +
+                    'Or run: bitrefill init'
             )
         );
         process.exit(1);
@@ -315,6 +372,19 @@ async function main(): Promise<void> {
             '--no-interactive',
             'Disable browser-based auth and interactive prompts (auto-detected in CI / non-TTY)'
         );
+
+    program
+        .command('init')
+        .description(
+            'Set up the CLI: validate API key, store credentials, and optionally register with OpenClaw'
+        )
+        .option(
+            '--openclaw',
+            'Force OpenClaw integration even if not auto-detected'
+        )
+        .action(() => {
+            formatter.info('init has already been handled.');
+        });
 
     program
         .command('logout')
