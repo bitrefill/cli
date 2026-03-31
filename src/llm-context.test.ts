@@ -32,9 +32,7 @@ describe('generateLlmContextMarkdown', () => {
 
         expect(md).toContain('# Bitrefill MCP — LLM context');
         expect(md).toContain('## Connection');
-        expect(md).toContain(
-            'https://api.bitrefill.com/mcp/<API_KEY>'
-        );
+        expect(md).toContain('https://api.bitrefill.com/mcp/<API_KEY>');
         expect(md).toContain('### `search_products`');
         expect(md).toContain('Search catalog.');
         expect(md).toContain('| `query` |');
