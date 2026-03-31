@@ -28,6 +28,10 @@ import {
     type OutputFormatter,
 } from './output.js';
 import { buildOptionsForTool, parseToolArgs } from './tools.js';
+import { generateLlmContextMarkdown } from './llm-context.js';
+
+/** Subcommands defined by the CLI; MCP tools with the same name are skipped. */
+const RESERVED_TOOL_NAMES = new Set(['logout', 'llm-context']);
 
 const BASE_MCP_URL = 'https://api.bitrefill.com/mcp';
 const CALLBACK_PORT = 8098;
@@ -330,8 +334,30 @@ async function main(): Promise<void> {
             }
         });
 
+    program
+        .command('llm-context')
+        .description(
+            'Emit MCP tools reference as Markdown (for CLAUDE.md, Cursor rules, Copilot instructions)'
+        )
+        .option(
+            '-o, --output <file>',
+            'Write Markdown to a file instead of stdout'
+        )
+        .action((opts: { output?: string }) => {
+            const md = generateLlmContextMarkdown(tools, {
+                mcpUrl,
+                programName: program.name(),
+            });
+            if (opts.output) {
+                fs.writeFileSync(opts.output, md, 'utf-8');
+            } else {
+                process.stdout.write(md);
+            }
+        });
+
     // Register each MCP tool as a subcommand
     for (const tool of tools) {
+        if (RESERVED_TOOL_NAMES.has(tool.name)) continue;
         const sub = program
             .command(tool.name)
             .description(tool.description ?? '');
