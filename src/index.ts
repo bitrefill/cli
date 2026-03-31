@@ -8,7 +8,6 @@ import {
     ListToolsResultSchema,
     CallToolResultSchema,
 } from '@modelcontextprotocol/sdk/types.js';
-import type { Tool } from '@modelcontextprotocol/sdk/types.js';
 import type {
     OAuthClientProvider,
     OAuthDiscoveryState,
@@ -23,6 +22,12 @@ import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
 import { execSync } from 'node:child_process';
+import {
+    createHumanFormatter,
+    createJsonFormatter,
+    type OutputFormatter,
+} from './output.js';
+import { buildOptionsForTool, parseToolArgs } from './tools.js';
 
 const BASE_MCP_URL = 'https://api.bitrefill.com/mcp';
 const CALLBACK_PORT = 8098;
@@ -41,6 +46,14 @@ function resolveMcpUrl(apiKey?: string): string {
     if (process.env.MCP_URL) return process.env.MCP_URL;
     if (apiKey) return `${BASE_MCP_URL}/${apiKey}`;
     return BASE_MCP_URL;
+}
+
+function resolveJsonMode(): boolean {
+    return process.argv.some((arg) => arg === '--json');
+}
+
+function createOutputFormatter(jsonMode: boolean): OutputFormatter {
+    return jsonMode ? createJsonFormatter() : createHumanFormatter();
 }
 
 // --- Persistent OAuth state ---
@@ -74,7 +87,10 @@ function saveState(serverUrl: string, state: PersistedState): void {
 
 // --- OAuth ---
 
-function createOAuthProvider(serverUrl: string): OAuthClientProvider {
+function createOAuthProvider(
+    serverUrl: string,
+    formatter: OutputFormatter
+): OAuthClientProvider {
     let state = loadState(serverUrl);
     const persist = () => saveState(serverUrl, state);
 
@@ -106,7 +122,9 @@ function createOAuthProvider(serverUrl: string): OAuthClientProvider {
             persist();
         },
         redirectToAuthorization(url: URL) {
-            console.log(`\nOpen this URL to authorize:\n  ${url.toString()}\n`);
+            formatter.info(
+                `\nOpen this URL to authorize:\n  ${url.toString()}\n`
+            );
             openBrowser(url.toString());
         },
         saveCodeVerifier(v: string) {
@@ -186,13 +204,14 @@ function waitForCallback(): Promise<string> {
 
 async function createMcpClient(
     url: string,
-    useOAuth: boolean
+    useOAuth: boolean,
+    formatter: OutputFormatter
 ): Promise<{ client: Client; transport: StreamableHTTPClientTransport }> {
     const suppressNoise = (err: Error) => {
         if (err instanceof UnauthorizedError) return;
         if (err.message?.includes('SSE stream disconnected')) return;
         if (err.message?.includes('Failed to open SSE stream')) return;
-        console.error('Client error:', err);
+        formatter.clientError(err);
     };
 
     if (!useOAuth) {
@@ -203,7 +222,7 @@ async function createMcpClient(
         return { client: c, transport: t };
     }
 
-    const authProvider = createOAuthProvider(url);
+    const authProvider = createOAuthProvider(url, formatter);
 
     const tryConnect = async () => {
         const c = new Client({ name: 'bitrefill-cli', version: '0.1.1' });
@@ -220,9 +239,9 @@ async function createMcpClient(
     } catch (err) {
         if (!(err instanceof UnauthorizedError)) throw err;
 
-        console.log('Authorization required...');
+        formatter.info('Authorization required...');
         const code = await waitForCallback();
-        console.log('Authorization code received.');
+        formatter.info('Authorization code received.');
 
         const c = new Client({ name: 'bitrefill-cli', version: '0.1.1' });
         c.onerror = suppressNoise;
@@ -235,112 +254,20 @@ async function createMcpClient(
     }
 }
 
-// --- Tool execution ---
-
-function printResult(result: {
-    content: Array<{ type: string; text?: string; [key: string]: unknown }>;
-}): void {
-    for (const item of result.content) {
-        if (item.type === 'text' && item.text) {
-            try {
-                console.log(JSON.stringify(JSON.parse(item.text), null, 2));
-            } catch {
-                console.log(item.text);
-            }
-        } else {
-            console.log(`[${item.type}]`, item);
-        }
-    }
-}
-
-interface JsonSchemaProperty {
-    type?: string;
-    description?: string;
-    default?: unknown;
-    enum?: unknown[];
-}
-
-function coerceValue(raw: string, prop: JsonSchemaProperty): unknown {
-    if (prop.enum) {
-        if (!prop.enum.includes(raw))
-            throw new Error(`Must be one of: ${prop.enum.join(', ')}`);
-        return raw;
-    }
-    switch (prop.type) {
-        case 'number':
-        case 'integer': {
-            const n = Number(raw);
-            if (Number.isNaN(n)) throw new Error('Must be a number');
-            return n;
-        }
-        case 'boolean':
-            if (['true', '1', 'yes'].includes(raw)) return true;
-            if (['false', '0', 'no'].includes(raw)) return false;
-            throw new Error('Must be true/false');
-        case 'object':
-        case 'array':
-            return JSON.parse(raw);
-        default:
-            return raw;
-    }
-}
-
-function buildOptionsForTool(cmd: Command, tool: Tool): void {
-    const schema = tool.inputSchema as {
-        properties?: Record<string, JsonSchemaProperty>;
-        required?: string[];
-    };
-
-    if (!schema.properties) return;
-
-    const required = new Set(schema.required ?? []);
-
-    for (const [name, prop] of Object.entries(schema.properties)) {
-        const flag = `--${name} <value>`;
-        let desc = prop.description ?? '';
-        if (prop.enum) desc += ` (${prop.enum.join(', ')})`;
-
-        if (prop.default !== undefined) {
-            cmd.option(flag, desc, String(prop.default));
-        } else if (required.has(name)) {
-            cmd.requiredOption(flag, desc);
-        } else {
-            cmd.option(flag, desc);
-        }
-    }
-}
-
-function parseToolArgs(
-    opts: Record<string, string | undefined>,
-    tool: Tool
-): Record<string, unknown> {
-    const schema = tool.inputSchema as {
-        properties?: Record<string, JsonSchemaProperty>;
-    };
-    if (!schema.properties) return {};
-
-    const args: Record<string, unknown> = {};
-    for (const [name, prop] of Object.entries(schema.properties)) {
-        const raw = opts[optionKey(name)];
-        if (raw === undefined) continue;
-        args[name] = coerceValue(raw, prop);
-    }
-    return args;
-}
-
-function optionKey(s: string): string {
-    return s.replace(/-([a-z])/g, (_, c: string) => c.toUpperCase());
-}
-
 // --- Main ---
 
 async function main(): Promise<void> {
     const apiKey = resolveApiKey();
+    const formatter = createOutputFormatter(resolveJsonMode());
     const mcpUrl = resolveMcpUrl(apiKey);
     const useOAuth = !apiKey && !process.env.MCP_URL;
 
     // Phase 1: connect and discover tools
-    const { client, transport } = await createMcpClient(mcpUrl, useOAuth);
+    const { client, transport } = await createMcpClient(
+        mcpUrl,
+        useOAuth,
+        formatter
+    );
 
     const toolsResult = await client.request(
         { method: 'tools/list', params: {} },
@@ -358,6 +285,10 @@ async function main(): Promise<void> {
         .option(
             '--api-key <key>',
             'Bitrefill API key (overrides BITREFILL_API_KEY env var)'
+        )
+        .option(
+            '--json',
+            'Output raw JSON (TOON decoded); use with jq. Non-result messages go to stderr.'
         );
 
     program
@@ -365,16 +296,16 @@ async function main(): Promise<void> {
         .description('Clear stored OAuth credentials')
         .action(() => {
             if (!useOAuth) {
-                console.log(
+                formatter.info(
                     'Using API key authentication — no stored credentials to clear.'
                 );
                 return;
             }
             try {
                 fs.unlinkSync(stateFilePath(mcpUrl));
-                console.log('Cleared stored credentials.');
+                formatter.info('Cleared stored credentials.');
             } catch {
-                console.log('No stored credentials to clear.');
+                formatter.info('No stored credentials to clear.');
             }
         });
 
@@ -395,7 +326,7 @@ async function main(): Promise<void> {
                 },
                 CallToolResultSchema
             );
-            printResult(result);
+            formatter.result(result.content ?? []);
         });
     }
 
@@ -408,6 +339,7 @@ async function main(): Promise<void> {
 }
 
 main().catch((err) => {
-    console.error('Error:', err instanceof Error ? err.message : err);
+    const formatter = createOutputFormatter(resolveJsonMode());
+    formatter.error(err);
     process.exit(1);
 });
