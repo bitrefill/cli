@@ -4,3 +4,4 @@ dist/
 .projects/cache
 .projects/vault
 .env
+.env.local
