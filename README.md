@@ -34,10 +34,29 @@ bitrefill search-products --query "Netflix"
 cp .env.example .env
 ```
 
+Node does not load `.env` files automatically. After editing `.env`, either export variables in your shell (`set -a && source .env && set +a` in bash/zsh) or pass `--api-key` on the command line.
+
 ## Usage
 
 ```bash
-bitrefill [--api-key <key>] <command> [options]
+bitrefill [--api-key <key>] [--json] <command> [options]
+```
+
+### Human-readable output (default)
+
+Tool results are pretty-printed JSON on stdout. Status messages (OAuth prompts, etc.) also go to stdout.
+
+### Machine-readable output (`--json`)
+
+Pass `--json` anywhere before the subcommand so scripts and `jq` get a single JSON value per invocation on stdout:
+
+- **stdout**: Only the tool result (JSON). Text payloads from the server may be JSON or [TOON](https://toonformat.dev/); the CLI decodes TOON to JSON when needed.
+- **stderr**: Progress messages, errors, and client errors (JSON `{ "error": "..." }` for failures).
+
+Example:
+
+```bash
+bitrefill --json search-products --query "Amazon" --per_page 1 | jq '.products[0].name'
 ```
 
 ### Examples
@@ -60,6 +79,18 @@ bitrefill --help
 
 # Clear stored credentials
 bitrefill logout
+```
+
+## Development
+
+From the repository root (requires [pnpm](https://pnpm.io/)):
+
+```bash
+pnpm install
+pnpm format    # Prettier check
+pnpm test      # Vitest unit tests
+pnpm build     # Compile to dist/
+pnpm dev -- --help   # Run CLI via tsx without building
 ```
 
 ## Paying
