@@ -22,6 +22,10 @@ On first run, the CLI opens your browser for OAuth authorization. Credentials ar
 
 Generate an API key at [bitrefill.com/account/developers](https://www.bitrefill.com/account/developers) and pass it via the `--api-key` option or the `BITREFILL_API_KEY` environment variable. This skips the OAuth flow entirely.
 
+### Non-interactive / CI
+
+In environments without a TTY (e.g. CI, Docker, scripts), or when `CI=true`, the CLI cannot complete browser-based OAuth. Pass `--no-interactive` to fail fast with a clear message, or use `--api-key` / `BITREFILL_API_KEY` instead.
+
 ```bash
 # Option
 bitrefill --api-key YOUR_API_KEY search-products --query "Netflix"
@@ -39,7 +43,7 @@ Node does not load `.env` files automatically. After editing `.env`, either expo
 ## Usage
 
 ```bash
-bitrefill [--api-key <key>] [--json] <command> [options]
+bitrefill [--api-key <key>] [--json] [--no-interactive] <command> [options]
 ```
 
 ### Human-readable output (default)

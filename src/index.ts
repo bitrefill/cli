@@ -52,6 +52,13 @@ function resolveJsonMode(): boolean {
     return process.argv.some((arg) => arg === '--json');
 }
 
+function resolveInteractive(): boolean {
+    if (process.argv.includes('--no-interactive')) return false;
+    if (process.env.CI === 'true') return false;
+    if (!process.stdin.isTTY) return false;
+    return true;
+}
+
 function createOutputFormatter(jsonMode: boolean): OutputFormatter {
     return jsonMode ? createJsonFormatter() : createHumanFormatter();
 }
@@ -262,6 +269,16 @@ async function main(): Promise<void> {
     const mcpUrl = resolveMcpUrl(apiKey);
     const useOAuth = !apiKey && !process.env.MCP_URL;
 
+    if (useOAuth && !resolveInteractive()) {
+        formatter.error(
+            new Error(
+                'Authorization required but running in non-interactive mode.\n' +
+                    'Use --api-key or set BITREFILL_API_KEY to authenticate without a browser.'
+            )
+        );
+        process.exit(1);
+    }
+
     // Phase 1: connect and discover tools
     const { client, transport } = await createMcpClient(
         mcpUrl,
@@ -289,6 +306,10 @@ async function main(): Promise<void> {
         .option(
             '--json',
             'Output raw JSON (TOON decoded); use with jq. Non-result messages go to stderr.'
+        )
+        .option(
+            '--no-interactive',
+            'Disable browser-based auth and interactive prompts (auto-detected in CI / non-TTY)'
         );
 
     program
