@@ -159,6 +159,8 @@ pnpm build     # Compile to dist/
 pnpm dev -- --help   # Run CLI via tsx without building
 ```
 
+Publishing to npm is triggered by [GitHub Releases](https://github.com/bitrefill/cli/releases); see [.github/RELEASING.md](.github/RELEASING.md).
+
 ## Paying
 
 **Flow:** `get-product-details` → pick `product_id` + `package_id` → `buy-products` with `--cart_items` and `--payment_method`.
