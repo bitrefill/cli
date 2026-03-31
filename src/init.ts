@@ -106,7 +106,10 @@ function resolveInitApiKey(opts: InitOptions): string | undefined {
 
 async function validateApiKey(apiKey: string): Promise<{ tools: Tool[] }> {
     const url = `${BASE_MCP_URL}/${apiKey}`;
-    const client = new Client({ name: 'bitrefill-cli', version: '0.1.1' });
+    const client = new Client({
+        name: 'bitrefill-cli',
+        version: '0.2.0-beta.0',
+    });
     const transport = new StreamableHTTPClientTransport(new URL(url));
 
     try {

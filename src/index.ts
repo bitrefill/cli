@@ -224,7 +224,10 @@ async function createMcpClient(
     };
 
     if (!useOAuth) {
-        const c = new Client({ name: 'bitrefill-cli', version: '0.1.1' });
+        const c = new Client({
+            name: 'bitrefill-cli',
+            version: '0.2.0-beta.0',
+        });
         c.onerror = suppressNoise;
         const t = new StreamableHTTPClientTransport(new URL(url));
         await c.connect(t);
@@ -234,7 +237,10 @@ async function createMcpClient(
     const authProvider = createOAuthProvider(url, formatter);
 
     const tryConnect = async () => {
-        const c = new Client({ name: 'bitrefill-cli', version: '0.1.1' });
+        const c = new Client({
+            name: 'bitrefill-cli',
+            version: '0.2.0-beta.0',
+        });
         c.onerror = suppressNoise;
         const t = new StreamableHTTPClientTransport(new URL(url), {
             authProvider,
@@ -252,7 +258,10 @@ async function createMcpClient(
         const code = await waitForCallback();
         formatter.info('Authorization code received.');
 
-        const c = new Client({ name: 'bitrefill-cli', version: '0.1.1' });
+        const c = new Client({
+            name: 'bitrefill-cli',
+            version: '0.2.0-beta.0',
+        });
         c.onerror = suppressNoise;
         const t = new StreamableHTTPClientTransport(new URL(url), {
             authProvider,
@@ -359,7 +368,7 @@ async function main(): Promise<void> {
         .description(
             'Bitrefill CLI - browse, buy, and manage gift cards, mobile top-ups, and eSIMs.\n\nTerms: https://www.bitrefill.com/terms\nPrivacy: https://www.bitrefill.com/privacy'
         )
-        .version('0.1.1')
+        .version('0.2.0-beta.0')
         .option(
             '--api-key <key>',
             'Bitrefill API key (overrides BITREFILL_API_KEY env var)'
