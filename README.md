@@ -63,6 +63,20 @@ Example:
 bitrefill --json search-products --query "Amazon" --per_page 1 | jq '.products[0].name'
 ```
 
+### LLM context (`llm-context`)
+
+Generates Markdown from the MCP `tools/list` response: tool names, descriptions, parameter tables, JSON Schema, example `bitrefill …` invocations, and example MCP `tools/call` payloads. Intended for **CLAUDE.md**, **Cursor** rules, or **`.github/copilot-instructions.md`**.
+
+- **stdout** by default, or **`-o` / `--output <file>`** to write a file.
+- Uses the same auth as other commands (`--api-key`, `BITREFILL_API_KEY`, or OAuth).
+- The generated **Connection** line shows a redacted MCP URL (`…/mcp/<API_KEY>`), not your real key.
+
+```bash
+export BITREFILL_API_KEY=YOUR_API_KEY
+bitrefill llm-context -o BITREFILL-MCP.md
+# or: bitrefill llm-context > BITREFILL-MCP.md
+```
+
 ### Examples
 
 ```bash
@@ -83,6 +97,9 @@ bitrefill --help
 
 # Clear stored credentials
 bitrefill logout
+
+# Export tool docs for coding agents (see "LLM context" above)
+bitrefill llm-context -o BITREFILL-MCP.md
 ```
 
 ## Development
