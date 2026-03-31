@@ -12,31 +12,73 @@ The CLI connects to the [Bitrefill MCP server](https://api.bitrefill.com/mcp) an
 npm install -g @bitrefill/cli
 ```
 
-## Authentication
+## Quick start (`init`)
 
-### OAuth (default)
-
-On first run, the CLI opens your browser for OAuth authorization. Credentials are stored in `~/.config/bitrefill-cli/`.
-
-### API Key
-
-Generate an API key at [bitrefill.com/account/developers](https://www.bitrefill.com/account/developers) and pass it via the `--api-key` option or the `BITREFILL_API_KEY` environment variable. This skips the OAuth flow entirely.
-
-### Non-interactive / CI
-
-In environments without a TTY (e.g. CI, Docker, scripts), or when `CI=true`, the CLI cannot complete browser-based OAuth. Pass `--no-interactive` to fail fast with a clear message, or use `--api-key` / `BITREFILL_API_KEY` instead.
+The fastest way to set up the CLI:
 
 ```bash
-# Option
+bitrefill init
+```
+
+This walks you through a one-time setup:
+
+1. Prompts for your API key (masked input) -- get one at [bitrefill.com/account/developers](https://www.bitrefill.com/account/developers)
+2. Validates the key against the Bitrefill MCP server
+3. Stores the key in `~/.config/bitrefill-cli/credentials.json` (permissions `0600`)
+4. If [OpenClaw](https://github.com/openclaw/openclaw) is detected, registers Bitrefill as an MCP server and generates a `SKILL.md` for agents
+
+Non-interactive and agent-driven usage:
+
+```bash
+# Pass the key directly (scripts, CI, OpenClaw agents)
+bitrefill init --api-key YOUR_API_KEY --non-interactive
+
+# Or via environment variable
+export BITREFILL_API_KEY=YOUR_API_KEY
+bitrefill init --non-interactive
+
+# Force OpenClaw integration even if not auto-detected
+bitrefill init --openclaw
+```
+
+After `init`, the stored key is picked up automatically -- no need to pass `--api-key` on every invocation.
+
+### OpenClaw + Telegram
+
+If you use [OpenClaw](https://github.com/openclaw/openclaw) as your AI agent gateway (e.g. via Telegram), `bitrefill init` does extra work:
+
+- Writes `BITREFILL_API_KEY` to `~/.openclaw/.env` (read by the gateway at activation)
+- Adds an MCP server entry to `~/.openclaw/openclaw.json` using `${BITREFILL_API_KEY}` -- the config file never contains the actual key
+- Generates `~/.openclaw/skills/bitrefill/SKILL.md` so the agent knows about all available tools
+
+After init, tell your Telegram bot: *"Search for Netflix gift cards on Bitrefill"*.
+
+## Authentication
+
+### API Key (recommended)
+
+Generate an API key at [bitrefill.com/account/developers](https://www.bitrefill.com/account/developers). After running `bitrefill init`, the key is stored locally and used automatically.
+
+You can also pass it explicitly:
+
+```bash
+# Flag
 bitrefill --api-key YOUR_API_KEY search-products --query "Netflix"
 
 # Environment variable
 export BITREFILL_API_KEY=YOUR_API_KEY
 bitrefill search-products --query "Netflix"
-
-# Or copy .env.example to .env and fill in your key
-cp .env.example .env
 ```
+
+Key resolution priority: `--api-key` flag > `BITREFILL_API_KEY` env var > stored credentials file.
+
+### OAuth
+
+On first run without an API key, the CLI opens your browser for OAuth authorization. Credentials are stored in `~/.config/bitrefill-cli/`.
+
+### Non-interactive / CI
+
+In environments without a TTY (e.g. CI, Docker, scripts), or when `CI=true`, the CLI cannot complete browser-based OAuth. Use `bitrefill init` first, or pass `--api-key` / `BITREFILL_API_KEY`.
 
 Node does not load `.env` files automatically. After editing `.env`, either export variables in your shell (`set -a && source .env && set +a` in bash/zsh) or pass `--api-key` on the command line.
 
@@ -80,6 +122,9 @@ bitrefill llm-context -o BITREFILL-MCP.md
 ### Examples
 
 ```bash
+# First-time setup
+bitrefill init
+
 # Search for products
 bitrefill search-products --query "Netflix"
 
