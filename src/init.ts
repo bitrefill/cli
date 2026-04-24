@@ -8,6 +8,7 @@ import { ListToolsResultSchema } from '@modelcontextprotocol/sdk/types.js';
 import type { Tool } from '@modelcontextprotocol/sdk/types.js';
 import { writeCredentials, redactKey } from './credentials.js';
 import { generateLlmContextMarkdown } from './llm-context.js';
+import { VERSION } from './version.js';
 
 const BASE_MCP_URL = 'https://api.bitrefill.com/mcp';
 const DEVELOPER_PORTAL_URL = 'https://www.bitrefill.com/account/developers';
@@ -108,7 +109,7 @@ async function validateApiKey(apiKey: string): Promise<{ tools: Tool[] }> {
     const url = `${BASE_MCP_URL}/${apiKey}`;
     const client = new Client({
         name: 'bitrefill-cli',
-        version: '0.2.0-beta.0',
+        version: VERSION,
     });
     const transport = new StreamableHTTPClientTransport(new URL(url));
 

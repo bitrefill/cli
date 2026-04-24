@@ -23,7 +23,7 @@ Publishing runs automatically when a **GitHub Release** is published (see [npm-p
 
 ## Stable release (e.g. `0.2.0`)
 
-1. Merge `package.json` version **`0.2.0`** (no prerelease suffix) and sync CLI/MCP version strings in `src/` if you still duplicate them.
+1. Merge `package.json` version **`0.2.0`** (no prerelease suffix). The CLI reads this version at runtime from `src/version.ts` (no separate bump in `src/`).
 2. Tag and push:
 
    ```bash

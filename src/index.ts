@@ -31,6 +31,7 @@ import { buildOptionsForTool, parseToolArgs } from './tools.js';
 import { generateLlmContextMarkdown } from './llm-context.js';
 import { resolveApiKeyWithStore } from './credentials.js';
 import { runInit } from './init.js';
+import { VERSION } from './version.js';
 
 /** Subcommands defined by the CLI; MCP tools with the same name are skipped. */
 const RESERVED_TOOL_NAMES = new Set(['logout', 'llm-context', 'init']);
@@ -226,7 +227,7 @@ async function createMcpClient(
     if (!useOAuth) {
         const c = new Client({
             name: 'bitrefill-cli',
-            version: '0.2.0-beta.0',
+            version: VERSION,
         });
         c.onerror = suppressNoise;
         const t = new StreamableHTTPClientTransport(new URL(url));
@@ -239,7 +240,7 @@ async function createMcpClient(
     const tryConnect = async () => {
         const c = new Client({
             name: 'bitrefill-cli',
-            version: '0.2.0-beta.0',
+            version: VERSION,
         });
         c.onerror = suppressNoise;
         const t = new StreamableHTTPClientTransport(new URL(url), {
@@ -260,7 +261,7 @@ async function createMcpClient(
 
         const c = new Client({
             name: 'bitrefill-cli',
-            version: '0.2.0-beta.0',
+            version: VERSION,
         });
         c.onerror = suppressNoise;
         const t = new StreamableHTTPClientTransport(new URL(url), {
@@ -368,7 +369,7 @@ async function main(): Promise<void> {
         .description(
             'Bitrefill CLI - browse, buy, and manage gift cards, mobile top-ups, and eSIMs.\n\nTerms: https://www.bitrefill.com/terms\nPrivacy: https://www.bitrefill.com/privacy'
         )
-        .version('0.2.0-beta.0')
+        .version(VERSION)
         .option(
             '--api-key <key>',
             'Bitrefill API key (overrides BITREFILL_API_KEY env var)'
